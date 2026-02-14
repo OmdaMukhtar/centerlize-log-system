@@ -1,0 +1,48 @@
+# Modules
+module(load="imtcp")
+module(load="gtls")
+
+# Global TLS Settings
+global(
+  DefaultNetstreamDriver="gtls"
+  DefaultNetstreamDriverCAFile="/etc/ssl/rsyslog/rsyslog.crt"
+  DefaultNetstreamDriverCertFile="/etc/ssl/rsyslog/rsyslog.crt"
+  DefaultNetstreamDriverKeyFile="/etc/ssl/rsyslog/rsyslog.key"
+  WorkDirectory="/var/spool/rsyslog"
+)
+
+# TLS Syslog Listener (RFC 5425)
+input(
+  type="imtcp"
+  port="6514"
+
+  StreamDriver="gtls"
+  StreamDriverMode="1"          # TLS required
+  StreamDriverAuthMode="x509/certvalid"   # Encryption only (can upgrade to mTLS later)
+
+  PermittedPeer="{{ rsyslog_client_fqdn }}"
+)
+
+# Templates (Modern Style)
+template(
+  name="RemoteLogs"
+  type="string"
+  string="/var/log/remote/%HOSTNAME%/%PROGRAMNAME%.log"
+)
+
+# Rules
+action(
+  type="omfile"
+  dynaFile="RemoteLogs"
+  DirCreateMode="0755"
+  FileCreateMode="0644"
+  CreateDirs="on"
+)
+
+# Performance
+main_queue(
+  queue.type="LinkedList"
+  queue.size="10000"
+  queue.dequeueBatchSize="100"
+  queue.saveonshutdown="on"
+)

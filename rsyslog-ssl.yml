@@ -1,0 +1,126 @@
+---
+- name: Configure SSL for Rsyslog Server
+  hosts: rsyslog_server
+  vars:
+    rsyslog_client_fqdn: "log.example.com"
+  become: yes
+  tasks:
+  - name: Install OpenSSL
+    apt:
+      name: openssl
+      state: present
+
+  - name: Create SSL directory
+    file:
+      path: /etc/ssl/rsyslog
+      state: directory
+      owner: syslog
+      group: adm
+      mode: '0755'
+
+  - name: Generate self-signed SSL certificate
+    command: |
+      openssl req -new -x509 -days 365 -nodes
+        -out /etc/ssl/rsyslog/rsyslog.crt
+        -keyout /etc/ssl/rsyslog/rsyslog.key
+        -subj "/CN=log.example.com"
+    args:
+      creates:
+      - /etc/ssl/rsyslog/rsyslog.key
+      - /etc/ssl/rsyslog/rsyslog.crt
+
+
+  - name: Set permissions on SSL key
+    file:
+      path: /etc/ssl/rsyslog/rsyslog.key
+      owner: syslog
+      group: adm
+      mode: '0600'
+
+  - name: Set permissions on SSL certificate
+    file:
+      path: /etc/ssl/rsyslog/rsyslog.crt
+      owner: syslog
+      group: adm
+      mode: '0644'
+
+  - name: Deploy SSL configuration for rsyslog
+    template:
+      src: templates/rsyslog-server-ssl.conf.j2
+      dest: /etc/rsyslog.d/ssl.conf
+    notify: restart rsyslog
+
+  - name: Ensure UFW is enabled and running
+    ufw:
+      state: enabled
+
+  - name: Deny firewall UDP 6514 for traditional syslog
+    ufw:
+      rule: deny
+      port: 514
+      proto: udp
+
+  - name: Open firewall TCP 6514 for TLS syslog
+    ufw:
+      rule: allow
+      port: 6514
+      proto: tcp
+
+  handlers:
+  - name: restart rsyslog
+    service:
+      name: rsyslog
+      state: restarted
+
+- name: Fetch SSL certificate from Rsyslog Server to Ansible Control Node
+  hosts: rsyslog_server
+  become: yes
+  tasks:
+  - name: Fetch SSL certificate from server
+    fetch:
+      src: /etc/ssl/rsyslog/rsyslog.crt
+      dest: /tmp/rsyslog.crt
+      flat: yes
+
+- name: Configure SSL for Rsyslog Clients
+  hosts: rsyslog_clients
+  become: yes
+  vars:
+    rsyslog_server_ip: 192.168.0.190
+    rsyslog_server_fqdn: "log.example.com"
+  tasks:
+  - name: Install OpenSSL
+    apt:
+      name:
+      - openssl
+      - rsyslog-gnutls
+      state: present
+
+  - name: Create SSL directory
+    file:
+      path: /etc/ssl/rsyslog
+      state: directory
+      owner: syslog
+      group: adm
+      mode: '0755'
+
+  - name: Copy SSL certificate from control node to client
+    copy:
+      src: /tmp/rsyslog.crt
+      dest: /etc/ssl/rsyslog/rsyslog.crt
+      owner: syslog
+      group: adm
+      mode: '0644'
+
+  - name: Deploy SSL configuration for rsyslog client
+    template:
+      src: templates/rsyslog-client-ssl.conf.j2
+      dest: /etc/rsyslog.d/ssl.conf
+    notify: restart rsyslog
+
+  handlers:
+  - name: restart rsyslog
+    service:
+      name: rsyslog
+      state: restarted
+

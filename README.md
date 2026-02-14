@@ -23,7 +23,7 @@ centralizing logs can help in better monitoring, analysis, and troubleshooting o
 - Run the playbook
 
 ```bash
-ansible-playbook -i rsyslog.yml
+ansible-playbook rsyslog.yml
 ```
 
 ## Test After Deployment
@@ -80,3 +80,4 @@ netstat -tuln | grep 514
 - Covert the playbook to a role for better modularity and reusability across different projects.
 - Send only usful logs to the central server by configuring filters on the client side to reduce noise and improve log management.
 - Configuring log Server to received only from known clients by using Firewall rules.
+- Let it support RHEL operating system as well.

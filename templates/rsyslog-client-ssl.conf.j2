@@ -1,0 +1,17 @@
+# Load TCP/TLS modules
+module(load="imuxsock")       # local system log
+module(load="imklog")         # kernel log
+module(load="omfwd")          # forward logs
+
+# Enable TLS
+module(load="gtls")
+action(
+  type="omfwd"
+  target="{{ rsyslog_server_ip }}"
+  port="6514"
+  protocol="tcp"
+  StreamDriver="gtls"
+  StreamDriverMode="1"
+  StreamDriverAuthMode="x509/name"
+  StreamDriverPermittedPeers="{{ rsyslog_server_fqdn }}"
+  tls.caFile="/etc/ssl/rsyslog/rsyslog.crt")
