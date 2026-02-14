@@ -1,0 +1,67 @@
+---
+- name: Configure Central Rsyslog Server
+  hosts: rsyslog_server
+  become: yes
+  tasks:
+  - name: Install rsyslog
+    apt:
+      name: rsyslog
+      state: present
+
+  - name: Create remote log directory
+    file:
+      path: /var/log/remote
+      state: directory
+      mode: '0755'
+      owner: syslog
+      group: adm
+      recurse: yes
+
+  - name: Deploy rsyslog server config
+    template:
+      src: templates/rsyslog-server.conf.j2
+      dest: /etc/rsyslog.d/central.conf
+    notify: restart rsyslog
+
+  - name: Open firewall TCP 514
+    ufw:
+      rule: allow
+      port: 514
+      proto: tcp
+
+  - name: Open firewall UDP 514
+    ufw:
+      rule: deny
+      port: 514
+      proto: udp
+
+  handlers:
+    - name: restart rsyslog
+      service:
+        name: rsyslog
+        state: restarted
+
+
+- name: Configure Rsyslog Clients
+  hosts: rsyslog_clients
+  become: yes
+  vars:
+    rsyslog_server_ip: 192.168.0.190
+
+  tasks:
+  - name: Install rsyslog
+    apt:
+      name: rsyslog
+      state: present
+
+  - name: Deploy rsyslog client config
+    template:
+      src: templates/rsyslog-client.conf.j2
+      dest: /etc/rsyslog.d/forward.conf
+    notify: restart rsyslog
+
+  handlers:
+    - name: restart rsyslog
+      service:
+        name: rsyslog
+        state: restarted
