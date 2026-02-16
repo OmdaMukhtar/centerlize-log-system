@@ -1,0 +1,31 @@
+---
+- name: Install UFW
+  apt:
+    name: ufw
+    state: present
+
+- name: Reset UFW
+  ufw:
+    state: reset
+
+- name: Default deny incoming
+  ufw:
+    direction: incoming
+    policy: deny
+
+- name: Allow Rsyslog from clients
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+  loop:
+  - 6514
+
+- name: Allow SSH from admin IP
+  ufw:
+    rule: allow
+    port: 22
+    src: "{{ admin_ip }}"
+
+- name: Enable UFW
+  ufw:
+    state: enabled

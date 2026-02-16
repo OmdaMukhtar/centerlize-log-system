@@ -1,0 +1,24 @@
+---
+- name: Install base security packages
+  apt:
+    name:
+      - ufw
+      - fail2ban
+      - apparmor
+      - apparmor-utils
+      - unattended-upgrades
+      - auditd
+    state: present
+    update_cache: yes
+
+- name: Enable AppArmor
+  systemd:
+    name: apparmor
+    enabled: yes
+    state: started
+
+- name: Enable auditd
+  systemd:
+    name: auditd
+    enabled: yes
+    state: started

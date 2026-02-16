@@ -1,0 +1,10 @@
+---
+- name: Enable unattended upgrades
+  copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1"; # Update package lists daily
+      APT::Periodic::Download-Upgradeable-Packages "1"; # Download upgradable packages daily
+      APT::Periodic::Unattended-Upgrade "1"; # Perform unattended upgrades daily
+      APT::Periodic::AutocleanInterval "7"; # Clean up cached packages every 7 days
+      APT::Periodic::Verbose "0"; # Disable verbose output

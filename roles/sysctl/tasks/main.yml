@@ -1,0 +1,38 @@
+---
+- name: Apply sysctl security settings
+  sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    reload: yes
+  loop:
+    # Enable SYN cookies to protect against SYN flood attacks
+    - { key: "net.ipv4.tcp_syncookies", value: "1" }
+    # Enable reverse path filtering to prevent IP spoofing
+    - { key: "net.ipv4.conf.all.rp_filter", value: "1" }
+    # Ignore ICMP echo requests sent to broadcast addresses
+    - { key: "net.ipv4.icmp_echo_ignore_broadcasts", value: "1" }
+    # Disable acceptance of ICMP redirects to
+    - { key: "net.ipv4.conf.all.accept_redirects", value: "0" }
+    # Disable sending of ICMP redirects
+    - { key: "net.ipv4.conf.all.send_redirects", value: "0" }
+    # Disable acceptance of source-routed packets
+    - { key: "net.ipv4.conf.all.accept_source_route", value: "0" }
+    # Log packets with un-routable source addresses (martians)
+    - { key: "net.ipv4.conf.all.log_martians", value: "1" }
+    # Log packets with un-routable source addresses (martians)
+    - { key: "net.ipv4.conf.all.log_martians", value: "1" }
+    # Disable acceptance of secure ICMP redirects
+    - { key: "net.ipv4.conf.all.secure_redirects", value: "0" }
+    # Enable shared media support for better handling of certain network configurations
+    - { key: "net.ipv4.conf.all.shared_media", value: "1" }
+    # Disable proxy ARP to prevent the server from responding to ARP requests on behalf of other hosts, which can be a security risk
+    - { key: "net.ipv4.conf.all.proxy_arp", value: "0" }
+    # Disable proxy ARP for private VLANs to further reduce the attack surface
+    - { key: "net.ipv4.conf.all.proxy_arp_pvlan", value: "0" }
+
+    # Restrict access to kernel pointers to prevent information disclosure
+    - { key: "kernel.kptr_restrict", value: "2" }
+    # Restrict access to dmesg output to prevent information disclosure
+    - { key: "kernel.dmesg_restrict", value: "1" }
+    # Restrict access to kernel logs to prevent information disclosure
+    - { key: "kernel.perf_event_paranoid", value: "3" }

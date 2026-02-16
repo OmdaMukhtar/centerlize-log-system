@@ -98,6 +98,22 @@ sudo ss -tnp | grep 6514
 
 ---
 
+## Hardening Rsyslog Instances
+
+- Roles that applied are:
+  - Firewall: To allow only necessary traffic to the Rsyslog server and block unauthorized access.
+  - SSH: To secure SSH access to the servers by allowing only specific users and implementing best practices.
+  - Auto Updates: To ensure that the servers are always up-to-date with the latest security patches and updates.
+  - Sysctl: To harden the kernel parameters for improved security and performance.
+
+- Apply the Roles
+
+```bash
+ansible-playbook harden_rsyslog.yml
+```
+
+---
+
 ## Screenshots
 
 ![image_screenshot](assets/image1.png)
@@ -117,3 +133,4 @@ sudo ss -tnp | grep 6514
 - Send only usful logs to the central server by configuring filters on the client side to reduce noise and improve log management.
 - Configuring log Server to received only from known clients by using Firewall rules.
 - Let it support RHEL operating system as well.
+- Secure All Servers by using Sysctl and SSH Hardening and Fail2Ban to prevent unauthorized access and brute-force attacks.

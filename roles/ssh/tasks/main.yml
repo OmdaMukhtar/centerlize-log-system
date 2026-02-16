@@ -1,0 +1,28 @@
+---
+- name: Install SSH
+  package:
+    name: openssh-server
+    state: present
+
+- name: Disable password auth
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^PasswordAuthentication'
+    line: PasswordAuthentication no
+
+- name: Disable root login
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^PermitRootLogin'
+    line: PermitRootLogin no
+
+- name: Allow only specific users
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^AllowUsers'
+    line: AllowUsers {{ allowed_users | join(' ') }}
+
+- name: Restart SSH
+  systemd:
+    name: ssh
+    state: restarted
