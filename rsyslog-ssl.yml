@@ -2,7 +2,10 @@
 - name: Configure SSL for Rsyslog Server
   hosts: rsyslog_server
   vars:
-    rsyslog_client_fqdn: "log.example.com"
+    rsyslog_client_fqdn:
+    - app1
+    - app2
+
   become: yes
   tasks:
   - name: Update apt cache
@@ -44,10 +47,10 @@
         -newkey rsa:2048
         -out /etc/ssl/rsyslog/rsyslog.crt
         -keyout /etc/ssl/rsyslog/rsyslog.key
-        -subj "/CN={{ rsyslog_client_fqdn }}"
+        -subj "/CN=log.example.com"
         -addext "basicConstraints=critical,CA:TRUE"
-    args:
-      creates: /etc/ssl/rsyslog/rsyslog.key
+    # args:
+    #   creates: /etc/ssl/rsyslog/rsyslog.key
 
 
   - name: Set permissions on SSL key
@@ -87,7 +90,7 @@
       port: 22
       proto: tcp
 
-  - name: Deny firewall UDP 6514 for traditional syslog
+  - name: Deny firewall UDP 514 for traditional syslog
     ufw:
       rule: deny
       port: 514
@@ -118,23 +121,23 @@
   - name: Fetch SSL certificate from server
     fetch:
       src: /etc/ssl/rsyslog/rsyslog.crt
-      dest: /tmp/rsyslog.crt
+      dest: /tmp/rsyslog_ca.crt
       flat: yes
 
-- name: Configure SSL for Rsyslog Clients
+- name: Configure Unique SSL for Rsyslog Clients
   hosts: rsyslog_clients
   become: yes
   vars:
     rsyslog_server_ip: 192.168.0.195
-    rsyslog_server_fqdn: "log.example.com"
+    rsyslog_server_fqdn:
+    - app1.example.com
+    - app2.example.com
+
   tasks:
-  - name: Install OpenSSL
+  - name: Install dependencies
     apt:
-      name:
-      - rsyslog
-      - rsyslog-gnutls
-      - openssl
-      state: latest
+      name: [rsyslog, rsyslog-gnutls, openssl]
+      state: present
 
   - name: Create SSL directory
     file:
@@ -144,10 +147,78 @@
       group: syslog
       mode: '0755'
 
-  - name: Copy SSL certificate from control node to client
+  - name: Copy CA Certificate from Control Node to Client
     copy:
-      src: /tmp/rsyslog.crt
-      dest: /etc/ssl/rsyslog/rsyslog.crt
+      src: /tmp/rsyslog_ca.crt
+      dest: /etc/ssl/rsyslog/rsyslog_ca.crt
+      owner: root
+      group: syslog
+      mode: '0644'
+
+  - name: Generate Unique Client Key and CSR
+    command: |
+      openssl req -new -nodes
+        -newkey rsa:2048
+        -keyout /etc/ssl/rsyslog/rsyslog.key
+        -out /etc/ssl/rsyslog/{{ inventory_hostname }}.csr
+        -subj "/CN={{ inventory_hostname }}.example.com"
+    # args:
+    #   creates: "/etc/ssl/rsyslog/{{ inventory_hostname }}.csr"
+
+  - name: Set key permissions
+    file:
+      path: /etc/ssl/rsyslog/rsyslog.key
+      owner: root
+      group: syslog
+      mode: '0640'
+
+  - name: Fetch CSR to Control Node
+    fetch:
+      src: "/etc/ssl/rsyslog/{{ inventory_hostname }}.csr"
+      dest: "/tmp/{{ inventory_hostname }}.csr"
+      flat: yes
+
+- name: Sign Client Certificates on Server
+  hosts: rsyslog_server
+  become: yes
+  tasks:
+    - name: Copy CSRs to Server
+      copy:
+        src: "/tmp/{{ item }}.csr"
+        dest: "/tmp/{{ item }}.csr"
+      loop: "{{ groups['rsyslog_clients'] }}"
+
+    - name: Sign Certificates with CA Key
+      command: |
+        openssl x509 -req -days 365
+          -in /tmp/{{ item }}.csr
+          -CA /etc/ssl/rsyslog/rsyslog.crt
+          -CAkey /etc/ssl/rsyslog/rsyslog.key
+          -CAcreateserial
+          -out /tmp/{{ item }}.crt
+      loop: "{{ groups['rsyslog_clients'] }}"
+      # args:
+      #   creates: "/tmp/{{ item }}.crt"
+
+    - name: Fetch Signed Certificates back to Control Node
+      fetch:
+        src: "/tmp/{{ item }}.crt"
+        dest: "/tmp/{{ item }}.crt"
+        flat: yes
+      loop: "{{ groups['rsyslog_clients'] }}"
+
+- name: Deploy Signed Certificates to Clients
+  hosts: rsyslog_clients
+  become: yes
+  vars:
+    rsyslog_server_ip: 192.168.0.195
+    rsyslog_server_fqdn: "log.example.com"
+
+  tasks:
+  - name: Copy final Signed Certificate to Client
+    copy:
+      src: "/tmp/{{ inventory_hostname }}.crt"
+      dest: "/etc/ssl/rsyslog/rsyslog.crt"
       owner: root
       group: syslog
       mode: '0644'

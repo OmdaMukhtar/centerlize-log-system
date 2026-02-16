@@ -1,6 +1,8 @@
 # Global TLS Settings - These MUST come before the module load
 global(
   DefaultNetstreamDriver="gtls"
+
+  # This file MUST be the one used to sign the client CSRs
   DefaultNetstreamDriverCAFile="/etc/ssl/rsyslog/rsyslog.crt"
   DefaultNetstreamDriverCertFile="/etc/ssl/rsyslog/rsyslog.crt"
   DefaultNetstreamDriverKeyFile="/etc/ssl/rsyslog/rsyslog.key"
@@ -13,7 +15,8 @@ module(load="imtcp" StreamDriver.Name="gtls" StreamDriver.Mode="1")
 input(
   type="imtcp"
   port="6514"
-  StreamDriver.AuthMode="anon"
+  StreamDriver.AuthMode="x509/name"
+  PermittedPeer=["*.example.com", "log.example.com"]
 )
 
 template(

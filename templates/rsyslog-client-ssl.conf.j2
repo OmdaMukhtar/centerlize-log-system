@@ -4,8 +4,11 @@ module(load="gtls")
 # 2. Set the default driver globally
 global(
   DefaultNetstreamDriver="gtls"
-  DefaultNetstreamDriverCAFile="/etc/ssl/rsyslog/rsyslog.crt"
+  DefaultNetstreamDriverCAFile="/etc/ssl/rsyslog/rsyslog_ca.crt"
 
+  # mTLS client certs (optional, but recommended for mutual authentication)
+  DefaultNetstreamDriverCertFile="/etc/ssl/rsyslog/rsyslog.crt"
+  DefaultNetstreamDriverKeyFile="/etc/ssl/rsyslog/rsyslog.key"
 )
 
 # 3. Define the Forwarding Action

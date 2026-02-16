@@ -62,11 +62,48 @@ netstat -tuln | grep 514
 
 ---
 
+## Secure Rsyslog with TLS
+
+### Ensure the client treats this cert as a trusted root CA `CA:TRUE`
+
+```bash
+ openssl req -new -x509 -days 365 -nodes
+    -newkey rsa:2048
+    -out /etc/ssl/rsyslog/rsyslog.crt
+    -keyout /etc/ssl/rsyslog/rsyslog.key
+    -subj "/CN=log.example.com"
+
+    -addext "basicConstraints=critical,CA:TRUE"
+```
+
+### Debug the TLS connection from the client to the server
+
+- from the client, use openssl s_client to test the TLS connection to the server:
+
+```bash
+openssl s_client -connect 192.168.0.195:6514 -CAfile /etc/ssl/rsyslog/rsyslog.crt | less
+```
+
+### Check rsyslog configuration for syntax errors
+
+```bash
+sudo rsyslogd -N1
+```
+
+### On the client, check if the connection to the server is established
+
+```bash
+sudo ss -tnp | grep 6514
+```
+
+---
+
 ## Screenshots
 
 ![image_screenshot](assets/image1.png)
 ![image_screenshot](assets/image2.png)
 ![image_screenshot](assets/image3.png)
+![image_screenshot](assets/image4.png)
 
 ---
 
@@ -74,26 +111,9 @@ netstat -tuln | grep 514
 
 - Implement log rotation and archiving on the central log server to manage disk space effectively.
 - Set up alerting and monitoring for specific log events using tools like Logwatch or ELK
-- Enhance security by configuring TLS encryption for log transmission between clients and the server.
 - Integrate with a log analysis tool for better insights and visualization of log data.
 - Implement a backup strategy for log data on the central server to prevent data loss.
 - Covert the playbook to a role for better modularity and reusability across different projects.
 - Send only usful logs to the central server by configuring filters on the client side to reduce noise and improve log management.
 - Configuring log Server to received only from known clients by using Firewall rules.
 - Let it support RHEL operating system as well.
-
-# ensure the client treats this cert as a trusted root CA
-
--addext "basicConstraints=critical,CA:TRUE"
-
-# debug the TLS connection from the client to the server
-
-openssl s_client -connect 192.168.0.195:6514 -CAfile /etc/ssl/rsyslog/rsyslog.crt | less
-
-# check rsyslog configuration for syntax errors
-
-sudo rsyslogd -N1
-
-# On the client, check if the connection to the server is established
-
-sudo ss -tnp | grep 6514
