@@ -1,0 +1,4 @@
+---
+# defaults file for firewall
+admin_ip: 192.168.0.
+
