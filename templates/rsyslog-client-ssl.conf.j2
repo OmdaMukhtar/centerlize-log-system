@@ -1,10 +1,14 @@
-# Load TCP/TLS modules
-module(load="imuxsock")       # local system log
-module(load="imklog")         # kernel log
-module(load="omfwd")          # forward logs
-
-# Enable TLS
+# 1. Load the TLS driver module
 module(load="gtls")
+
+# 2. Set the default driver globally
+global(
+  DefaultNetstreamDriver="gtls"
+  DefaultNetstreamDriverCAFile="/etc/ssl/rsyslog/rsyslog.crt"
+
+)
+
+# 3. Define the Forwarding Action
 action(
   type="omfwd"
   target="{{ rsyslog_server_ip }}"
@@ -14,4 +18,4 @@ action(
   StreamDriverMode="1"
   StreamDriverAuthMode="x509/name"
   StreamDriverPermittedPeers="{{ rsyslog_server_fqdn }}"
-  tls.caFile="/etc/ssl/rsyslog/rsyslog.crt")
+)

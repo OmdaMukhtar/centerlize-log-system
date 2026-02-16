@@ -6,7 +6,7 @@ centralizing logs can help in better monitoring, analysis, and troubleshooting o
 
 ## Daigram
 
-![image_diagram](assets/centerlize_log_sever.png)
+![image_diagram](assets/secure_diagram.png)
 
 ---
 
@@ -81,3 +81,19 @@ netstat -tuln | grep 514
 - Send only usful logs to the central server by configuring filters on the client side to reduce noise and improve log management.
 - Configuring log Server to received only from known clients by using Firewall rules.
 - Let it support RHEL operating system as well.
+
+# ensure the client treats this cert as a trusted root CA
+
+-addext "basicConstraints=critical,CA:TRUE"
+
+# debug the TLS connection from the client to the server
+
+openssl s_client -connect 192.168.0.195:6514 -CAfile /etc/ssl/rsyslog/rsyslog.crt | less
+
+# check rsyslog configuration for syntax errors
+
+sudo rsyslogd -N1
+
+# On the client, check if the connection to the server is established
+
+sudo ss -tnp | grep 6514

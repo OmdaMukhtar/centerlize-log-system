@@ -5,44 +5,71 @@
     rsyslog_client_fqdn: "log.example.com"
   become: yes
   tasks:
+  - name: Update apt cache
+    apt:
+      update_cache: yes
+
   - name: Install OpenSSL
     apt:
-      name: openssl
+      name:
+      - rsyslog
+      - rsyslog-gnutls
+      - openssl
       state: present
+
+  - name: Ensure /etc/ssl is traversable
+    file:
+      path: /etc/ssl
+      state: directory
+      mode: '0755'
+
+  - name: Ensure /etc/ssl is owned by root
+    file:
+      path: /etc/ssl
+      owner: root
+      group: root
+      mode: '0755'
 
   - name: Create SSL directory
     file:
       path: /etc/ssl/rsyslog
       state: directory
-      owner: syslog
-      group: adm
+      owner: root
+      group: syslog
       mode: '0755'
 
   - name: Generate self-signed SSL certificate
     command: |
       openssl req -new -x509 -days 365 -nodes
+        -newkey rsa:2048
         -out /etc/ssl/rsyslog/rsyslog.crt
         -keyout /etc/ssl/rsyslog/rsyslog.key
-        -subj "/CN=log.example.com"
+        -subj "/CN={{ rsyslog_client_fqdn }}"
+        -addext "basicConstraints=critical,CA:TRUE"
     args:
-      creates:
-      - /etc/ssl/rsyslog/rsyslog.key
-      - /etc/ssl/rsyslog/rsyslog.crt
+      creates: /etc/ssl/rsyslog/rsyslog.key
 
 
   - name: Set permissions on SSL key
     file:
       path: /etc/ssl/rsyslog/rsyslog.key
-      owner: syslog
-      group: adm
-      mode: '0600'
+      owner: root
+      group: syslog
+      mode: '0640'
 
   - name: Set permissions on SSL certificate
     file:
       path: /etc/ssl/rsyslog/rsyslog.crt
-      owner: syslog
-      group: adm
+      owner: root
+      group: syslog
       mode: '0644'
+
+  - name: Allow rsyslog to access SSL certs in AppArmor
+    lineinfile:
+      path: /etc/apparmor.d/local/usr.sbin.rsyslogd
+      line: "/etc/ssl/rsyslog/* r,"
+      create: yes
+    notify: reload apparmor
 
   - name: Deploy SSL configuration for rsyslog
     template:
@@ -53,6 +80,12 @@
   - name: Ensure UFW is enabled and running
     ufw:
       state: enabled
+
+  - name: To not block your self when connecting via SSH, allow port 22
+    ufw:
+      rule: allow
+      port: 22
+      proto: tcp
 
   - name: Deny firewall UDP 6514 for traditional syslog
     ufw:
@@ -66,11 +99,17 @@
       port: 6514
       proto: tcp
 
+
   handlers:
   - name: restart rsyslog
     service:
       name: rsyslog
       state: restarted
+
+  - name: reload apparmor
+    service:
+      name: apparmor
+      state: reloaded
 
 - name: Fetch SSL certificate from Rsyslog Server to Ansible Control Node
   hosts: rsyslog_server
@@ -86,31 +125,39 @@
   hosts: rsyslog_clients
   become: yes
   vars:
-    rsyslog_server_ip: 192.168.0.190
+    rsyslog_server_ip: 192.168.0.195
     rsyslog_server_fqdn: "log.example.com"
   tasks:
   - name: Install OpenSSL
     apt:
       name:
-      - openssl
+      - rsyslog
       - rsyslog-gnutls
-      state: present
+      - openssl
+      state: latest
 
   - name: Create SSL directory
     file:
       path: /etc/ssl/rsyslog
       state: directory
-      owner: syslog
-      group: adm
+      owner: root
+      group: syslog
       mode: '0755'
 
   - name: Copy SSL certificate from control node to client
     copy:
       src: /tmp/rsyslog.crt
       dest: /etc/ssl/rsyslog/rsyslog.crt
-      owner: syslog
-      group: adm
+      owner: root
+      group: syslog
       mode: '0644'
+
+  - name: Allow rsyslog to access SSL certs in AppArmor (Client)
+    lineinfile:
+      path: /etc/apparmor.d/local/usr.sbin.rsyslogd
+      line: "/etc/ssl/rsyslog/* r,"
+      create: yes
+    notify: reload apparmor client
 
   - name: Deploy SSL configuration for rsyslog client
     template:
@@ -123,4 +170,9 @@
     service:
       name: rsyslog
       state: restarted
+
+  - name: reload apparmor client
+    service:
+      name: apparmor
+      state: reloaded
 
